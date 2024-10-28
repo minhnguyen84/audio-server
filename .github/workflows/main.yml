@@ -1,0 +1,38 @@
+name: Build & deploy
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  STAGE: ${{ (github.base_ref == 'main' ||  github.ref == 'refs/heads/main') && 'prod' || 'si' }}
+
+# run-name: Build Compile $STAGE
+
+jobs:
+  vars:
+    runs-on: ubuntu-latest
+    outputs:
+      stage: ${{ env.STAGE }}
+    steps:
+      - run: echo "Exposing env vars"
+
+  build-backend:
+    uses: ./.github/workflows/build-backend.yml
+    needs: [ vars ]
+    with:
+      artifact-name: audio-server-${{needs.vars.outputs.stage}}
+
+  deploy-backend-aws:
+    uses: ./.github/workflows/aws-deploy-backend.yml
+    needs: [ vars, build-backend ]
+    secrets: inherit
+    with:
+      stage: ${{needs.vars.outputs.stage}}
+      artifact-name: audio-server-${{needs.vars.outputs.stage}}
