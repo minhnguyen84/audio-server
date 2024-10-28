@@ -1,3 +1,5 @@
 /.idea/
 /audio-server
 *.iml
+/.env
+/minio/

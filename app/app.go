@@ -21,10 +21,10 @@ func New() *App {
 }
 
 func (app *App) setup() {
-	config := utils.LoadConfig()
+	config := utils.GetConfig()
 	audiohookHandler := audiohook_genesys.NewWebSocketHandler()
 	r := router.InitializeRouter(audiohookHandler)
-	app.Config = config
+	app.Config = *config
 	app.Router = r
 }
 

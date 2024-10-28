@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 	"log"
 	"net/http"
+	"time"
 )
 
 // WebSocketHandler gère les connexions WebSocket
@@ -57,9 +58,12 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Goroutine pour gérer la fermeture de la connexion et les logs récapitulatifs
 	go func() {
 		<-closeChan
-		// Effectuer des logs récapitulatifs ici
 		log.Println("Fermeture de la connexion WebSocket")
+		// fermer audioHandler = close file and buffer
 		wsSession.audioHandler.Close()
+		// Fermer la connexion après un court délai pour s'assurer que le message 'closed' est envoyé
+		time.Sleep(400 * time.Millisecond)
+		conn.Close()
 	}()
 
 	// Démarrer l'écoute des messages
