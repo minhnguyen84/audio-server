@@ -1,28 +1,32 @@
 package audiohook_genesys
 
 import (
+	"audio-server/audio/metadata"
 	"audio-server/utils"
 	"encoding/json"
 	"go.uber.org/zap"
+	"time"
 )
 
 type MessageHandlerFunc func(msg MessageReceived) (*MessageSent, error)
 
 type MessageHandler struct {
-	seq       int
-	clientseq int
-	sessionId string
-	handlers  map[string]MessageHandlerFunc
-	closeChan chan struct{}
+	seq          int
+	clientseq    int
+	sessionId    string
+	handlers     map[string]MessageHandlerFunc
+	closeChan    chan struct{}
+	metadataChan chan metadata.Event
 }
 
-func NewMessageHandler(sessionId string, closeChan chan struct{}) *MessageHandler {
+func NewMessageHandler(sessionId string, closeChan chan struct{}, metadataChan chan metadata.Event) *MessageHandler {
 	messageHandler := &MessageHandler{
-		seq:       0,
-		clientseq: 0,
-		sessionId: sessionId,
-		handlers:  make(map[string]MessageHandlerFunc),
-		closeChan: closeChan,
+		seq:          0,
+		clientseq:    0,
+		sessionId:    sessionId,
+		handlers:     make(map[string]MessageHandlerFunc),
+		closeChan:    closeChan,
+		metadataChan: metadataChan,
 	}
 	messageHandler.handlers[MessageTypeOpen] = messageHandler.handleOpen
 	messageHandler.handlers[MessageTypePing] = messageHandler.handlePing
@@ -73,6 +77,18 @@ func (mh *MessageHandler) handleOpen(msg MessageReceived) (*MessageSent, error) 
 			DiscardTo:   nil,
 		},
 	}
+
+	mh.metadataChan <- metadata.Event{
+		Type:      metadata.UPDATE,
+		SessionId: mh.sessionId,
+		Parameters: metadata.UpdateParameters{
+			Status:            metadata.ONGOING,
+			CallerPhoneNumber: &params.Participant.Ani,
+			Language:          params.Language,
+		},
+		Trace: nil,
+	}
+
 	return &openedMsg, nil
 }
 
@@ -117,6 +133,16 @@ func (mh *MessageHandler) handleClose(msg MessageReceived) (*MessageSent, error)
 		ClientSeq:  msg.Seq,
 		ID:         mh.sessionId,
 		Parameters: PongParameters{},
+	}
+	stopTime := time.Now()
+	mh.metadataChan <- metadata.Event{
+		Type:      metadata.UPDATE,
+		SessionId: mh.sessionId,
+		Parameters: metadata.UpdateParameters{
+			Status:   metadata.FINISHED,
+			StopTime: &stopTime,
+		},
+		Trace: nil,
 	}
 
 	// Signaler la fermeture de la connexion

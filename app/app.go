@@ -1,6 +1,7 @@
 package app
 
 import (
+	"audio-server/audio/metadata"
 	"audio-server/audiohook_genesys"
 	"audio-server/router"
 	"audio-server/utils"
@@ -22,7 +23,9 @@ func New() *App {
 
 func (app *App) setup() {
 	config := utils.GetConfig()
-	audiohookHandler := audiohook_genesys.NewWebSocketHandler()
+	metadataChan := make(chan metadata.Event)
+	audiohookHandler := audiohook_genesys.NewWebSocketHandler(metadataChan)
+	metadata.NewMetadataManager(metadataChan)
 	r := router.InitializeRouter(audiohookHandler)
 	app.Config = *config
 	app.Router = r

@@ -9,6 +9,7 @@ import (
 	"github.com/go-audio/wav"
 	"go.uber.org/zap"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -153,5 +154,6 @@ func newIntBuffer(numSamples int) *audio.IntBuffer {
 }
 
 func fileName(source, sessionId string) string {
-	return fmt.Sprintf("%s_audio_%s.wav", source, sessionId)
+	utils.Logger.Info("TempDir : " + os.TempDir())
+	return filepath.Join(os.TempDir(), fmt.Sprintf("%s_audio_%s.wav", source, sessionId))
 }

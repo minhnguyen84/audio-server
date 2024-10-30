@@ -2,6 +2,7 @@ package audiohook_genesys
 
 import (
 	"audio-server/audio"
+	"audio-server/audio/metadata"
 	"audio-server/utils"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,8 @@ import (
 
 // WebSocketHandler gère les connexions WebSocket
 type WebSocketHandler struct {
-	upgrader websocket.Upgrader
+	upgrader     websocket.Upgrader
+	metadataChan chan metadata.Event
 }
 
 type WebSocketSession struct {
@@ -23,7 +25,7 @@ type WebSocketSession struct {
 }
 
 // NewWebSocketHandler crée une nouvelle instance de WebSocketHandler
-func NewWebSocketHandler() *WebSocketHandler {
+func NewWebSocketHandler(metadataChan chan metadata.Event) *WebSocketHandler {
 	return &WebSocketHandler{
 		upgrader: websocket.Upgrader{
 			//  ReadBufferSize:  4096, default value - à ré-évaluer si besoin
@@ -32,6 +34,7 @@ func NewWebSocketHandler() *WebSocketHandler {
 				return true
 			},
 		},
+		metadataChan: metadataChan,
 	}
 }
 
@@ -52,8 +55,8 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	utils.Logger.Info("Nouvelle connexion WebSocket établie", zap.String("sessionId", sessionId))
 
 	closeChan := make(chan struct{})
-
-	wsSession := NewSession(sessionId, closeChan)
+	wsSession := h.newSession(sessionId, closeChan)
+	h.createMetadata(sessionId)
 
 	// Goroutine pour gérer la fermeture de la connexion et les logs récapitulatifs
 	go func() {
@@ -110,13 +113,36 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	utils.Logger.Info("Connexion WebSocket fermée.")
 }
 
-func NewSession(sessionId string, closeChan chan struct{}) *WebSocketSession {
+func (h *WebSocketHandler) createMetadata(sessionId string) {
+	metadataEvent := metadata.Event{
+		Type:      metadata.CREATE,
+		SessionId: sessionId,
+		Parameters: metadata.CreateParameters{
+			StartTime:         time.Now(),
+			CallerPhoneNumber: nil,
+		},
+	}
+	h.metadataChan <- metadataEvent
+}
+
+func (h *WebSocketHandler) closeMetadata(sessionId string) {
+	metadataEvent := metadata.Event{
+		Type:      metadata.UPDATE,
+		SessionId: sessionId,
+		Parameters: metadata.UpdateParameters{
+			Status: metadata.FINISHED,
+		},
+	}
+	h.metadataChan <- metadataEvent
+}
+
+func (h *WebSocketHandler) newSession(sessionId string, closeChan chan struct{}) *WebSocketSession {
 	audioHandler, err := audio.NewAudioHandler(sessionId)
 	if err != nil {
 		//TODO : il faut gérer
 	}
 	return &WebSocketSession{
 		audioHandler:   audioHandler,
-		messageHandler: NewMessageHandler(sessionId, closeChan),
+		messageHandler: NewMessageHandler(sessionId, closeChan, h.metadataChan),
 	}
 }
