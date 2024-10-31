@@ -11,6 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+type FileUploader interface {
+	UploadFile(ctx context.Context, file *os.File, s string) error
+}
+
 // S3Uploader gère les uploads vers S3 like
 type S3Uploader struct {
 	s3Client   *s3.S3

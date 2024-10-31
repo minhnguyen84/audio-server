@@ -1,11 +1,49 @@
 package audio
 
-import "github.com/go-audio/audio"
+import (
+	"github.com/go-audio/audio"
+	"sync"
+)
 
-type Audio struct {
+type Message struct {
 	SessionId string
-	Data      struct {
-		internal *audio.IntBuffer
-		external *audio.IntBuffer
+	IsClosed  bool
+	Data      Data
+}
+
+type Data struct {
+	Internal *audio.IntBuffer
+	External *audio.IntBuffer
+}
+
+type AudioDispatcher struct {
+	outputChannels []chan Message
+	mu             sync.RWMutex
+}
+
+func NewAudioDispatcher(initialSubscribers ...chan Message) *AudioDispatcher {
+	dispatcher := &AudioDispatcher{
+		outputChannels: make([]chan Message, 0, len(initialSubscribers)),
+	}
+
+	dispatcher.mu.Lock()
+	defer dispatcher.mu.Unlock()
+
+	for _, ch := range initialSubscribers {
+		dispatcher.outputChannels = append(dispatcher.outputChannels, ch)
+	}
+
+	return dispatcher
+}
+
+func (d *AudioDispatcher) Dispatch(msg Message) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	for _, ch := range d.outputChannels {
+		// Utiliser une goroutine pour éviter de bloquer le dispatch si un canal est bloqué.
+		go func(c chan Message) {
+			c <- msg
+		}(ch)
 	}
 }

@@ -17,15 +17,15 @@ import (
 type WebSocketHandler struct {
 	upgrader     websocket.Upgrader
 	metadataChan chan metadata.Event
+	audioHandler *audio.Handler
 }
 
 type WebSocketSession struct {
-	audioHandler   *audio.Handler
 	messageHandler *MessageHandler
 }
 
 // NewWebSocketHandler crée une nouvelle instance de WebSocketHandler
-func NewWebSocketHandler(metadataChan chan metadata.Event) *WebSocketHandler {
+func NewWebSocketHandler(audioHandler *audio.Handler, metadataChan chan metadata.Event) *WebSocketHandler {
 	return &WebSocketHandler{
 		upgrader: websocket.Upgrader{
 			//  ReadBufferSize:  4096, default value - à ré-évaluer si besoin
@@ -34,6 +34,7 @@ func NewWebSocketHandler(metadataChan chan metadata.Event) *WebSocketHandler {
 				return true
 			},
 		},
+		audioHandler: audioHandler,
 		metadataChan: metadataChan,
 	}
 }
@@ -63,7 +64,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		<-closeChan
 		log.Println("Fermeture de la connexion WebSocket")
 		// fermer audioHandler = close file and buffer
-		wsSession.audioHandler.Close()
+		h.audioHandler.Close(sessionId)
 		// Fermer la connexion après un court délai pour s'assurer que le message 'closed' est envoyé
 		time.Sleep(400 * time.Millisecond)
 		conn.Close()
@@ -81,7 +82,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		case websocket.BinaryMessage:
 			// Gérer les données audio binaires
 			utils.Logger.Info("BinaryMessage")
-			wsSession.audioHandler.HandleAudioData(message)
+			h.audioHandler.HandleAudioData(sessionId, message)
 		default:
 			// Gérer les messages textuels (contrôle) - y compris les messages "keep-alive"
 			var msg MessageReceived
@@ -137,12 +138,7 @@ func (h *WebSocketHandler) closeMetadata(sessionId string) {
 }
 
 func (h *WebSocketHandler) newSession(sessionId string, closeChan chan struct{}) *WebSocketSession {
-	audioHandler, err := audio.NewAudioHandler(sessionId)
-	if err != nil {
-		//TODO : il faut gérer
-	}
 	return &WebSocketSession{
-		audioHandler:   audioHandler,
 		messageHandler: NewMessageHandler(sessionId, closeChan, h.metadataChan),
 	}
 }
