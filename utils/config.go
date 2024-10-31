@@ -18,6 +18,8 @@ type AppConfig struct {
 	S3Endpoint  string
 	S3AccessKey string
 	S3SecretKey string
+
+	AudioTempRep string
 }
 
 var (
@@ -41,7 +43,7 @@ func loadConfig() *AppConfig {
 	cfg.Port = viper.GetInt("PORT")
 
 	viper.SetDefault("AWS_REGION", "eu-west-3")
-	viper.SetDefault("BUCKET", "audio")
+	viper.SetDefault("S3_BUCKET_NAME", "audio-server-si")
 	cfg.S3Region = viper.GetString("AWS_REGION")
 	cfg.S3BucketName = viper.GetString("S3_BUCKET_NAME")
 
@@ -53,6 +55,9 @@ func loadConfig() *AppConfig {
 	cfg.S3Endpoint = viper.GetString("AWS_S3_ENDPOINT")
 	cfg.S3AccessKey = viper.GetString("AWS_S3_ACCESS_KEY")
 	cfg.S3SecretKey = viper.GetString("AWS_S3_SECRET_KEY")
+
+	viper.SetDefault("AUDIO_TEMP_REP", "/audio_tmp")
+	cfg.AudioTempRep = viper.GetString("AUDIO_TEMP_REP")
 
 	return &cfg
 }

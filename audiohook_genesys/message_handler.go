@@ -1,7 +1,7 @@
 package audiohook_genesys
 
 import (
-	"audio-server/audio/metadata"
+	"audio-server/audiolab/metadata"
 	"audio-server/utils"
 	"encoding/json"
 	"go.uber.org/zap"

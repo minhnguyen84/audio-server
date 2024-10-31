@@ -1,12 +1,13 @@
 package outbound
 
 import (
-	"audio-server/audio"
+	"audio-server/audiolab"
 	"audio-server/utils"
 	"context"
 	"fmt"
 	"github.com/go-audio/wav"
 	"go.uber.org/zap"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -16,16 +17,28 @@ import (
 type FileStorage struct {
 	mu           sync.Mutex
 	wg           sync.WaitGroup
-	dispatchChan <-chan audio.Message
-	workers      map[string]chan audio.Message
+	dispatchChan <-chan audiolab.Message
+	workers      map[string]chan audiolab.Message
 	uploader     utils.FileUploader
+	tempsDir     string
 }
 
-func NewFileStorage(dispatchChan <-chan audio.Message, uploader utils.FileUploader) (*FileStorage, error) {
+func NewFileStorage(dispatchChan <-chan audiolab.Message, uploader utils.FileUploader, appConfig utils.AppConfig) (*FileStorage, error) {
+	tempsDir := appConfig.AudioTempRep
+	err := os.Mkdir(tempsDir, fs.ModeDir)
+	if err != nil {
+		return nil, err
+	}
+	os.Chmod(tempsDir, fs.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+
 	fileStorage := &FileStorage{
-		workers:      make(map[string]chan audio.Message, 10),
+		workers:      make(map[string]chan audiolab.Message, 10),
 		dispatchChan: dispatchChan,
 		uploader:     uploader,
+		tempsDir:     tempsDir,
 	}
 	go fileStorage.run()
 	return fileStorage, nil
@@ -39,11 +52,11 @@ func (f *FileStorage) run() {
 	f.wg.Wait()
 }
 
-func (f *FileStorage) handleMessage(s audio.Message) {
+func (f *FileStorage) handleMessage(s audiolab.Message) {
 	f.mu.Lock()
 	ch, exists := f.workers[s.SessionId]
 	if !exists && !s.IsClosed {
-		ch = make(chan audio.Message, 10)
+		ch = make(chan audiolab.Message, 10)
 		f.workers[s.SessionId] = ch
 		f.wg.Add(1)
 		go f.worker(s.SessionId, ch)
@@ -71,16 +84,18 @@ func (f *FileStorage) handleMessage(s audio.Message) {
 	}
 }
 
-func (f *FileStorage) worker(sessionId string, ch chan audio.Message) {
+func (f *FileStorage) worker(sessionId string, ch chan audiolab.Message) {
 	defer f.wg.Done()
 	// init file
-	fileInternal, err := os.Create(fileName("internal", sessionId))
+	fileInternalName := fileName("internal", sessionId)
+	fileInternal, err := os.Create(filepath.Join(f.tempsDir, fileInternalName))
 	if err != nil {
 		//TODO il faut gérer les erreurs
 		utils.Logger.Error("Erreur lors de la création du fichier temporaire", zap.Error(err))
 	}
 
-	fileExternal, err := os.Create(fileName("external", sessionId))
+	fileExternalName := fileName("external", sessionId)
+	fileExternal, err := os.Create(filepath.Join(f.tempsDir, fileExternalName))
 	if err != nil {
 		//TODO il faut gérer les erreurs
 		utils.Logger.Error("Erreur lors de la création du fichier temporaire", zap.Error(err))
@@ -107,13 +122,19 @@ func (f *FileStorage) worker(sessionId string, ch chan audio.Message) {
 				utils.Logger.Info("Fin de session", zap.String("SessionId", s.SessionId))
 
 				// upload sur S3 et delete les temporary file
-				f.uploadFile(fileInternal)
+				if err := encoderInternal.Close(); err != nil {
+					utils.Logger.Error("Erreur lors de la fermeture du encoderInternal", zap.Error(err))
+				}
+				f.uploadFile(fileInternal, fileInternalName)
 				if err := fileInternal.Close(); err != nil {
 					utils.Logger.Error("Erreur lors de la fermeture du fichier WAV", zap.Error(err))
 				}
 				deleteLocalFile(fileInternal)
 
-				f.uploadFile(fileExternal)
+				if err := encoderExternal.Close(); err != nil {
+					utils.Logger.Error("Erreur lors de la fermeture du encoderExternal", zap.Error(err))
+				}
+				f.uploadFile(fileExternal, fileExternalName)
 				if err := fileExternal.Close(); err != nil {
 					utils.Logger.Error("Erreur lors de la fermeture du fichier WAV", zap.Error(err))
 				}
@@ -138,14 +159,15 @@ func (f *FileStorage) Close() {
 
 }
 
-func (f *FileStorage) uploadFile(file *os.File) {
+func (f *FileStorage) uploadFile(file *os.File, fileName string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	rep := time.Now().Format("20060102")
-	err := f.uploader.UploadFile(ctx, file, rep+"/"+file.Name())
+	err := f.uploader.UploadFile(ctx, file, rep+"/"+fileName)
 	if err != nil {
 		utils.Logger.Error("Erreur lors de la uploade file ",
-			zap.String("fileName", file.Name()),
+			zap.String("fileName", fileName),
+			zap.Int64("fileSize", fileSize(file.Name())),
 			zap.Error(err))
 		return
 	}
@@ -163,6 +185,16 @@ func deleteLocalFile(file *os.File) {
 }
 
 func fileName(source, sessionId string) string {
-	utils.Logger.Info("TempDir : " + os.TempDir())
-	return filepath.Join(os.TempDir(), fmt.Sprintf("%s_audio_%s.wav", source, sessionId))
+	return fmt.Sprintf("%s_audio_%s.wav", source, sessionId)
+}
+
+func fileSize(filePath string) int64 {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		utils.Logger.Error("Erreur fileSize",
+			zap.String("fileName", filePath),
+			zap.Error(err))
+		return 0
+	}
+	return info.Size()
 }

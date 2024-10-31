@@ -1,9 +1,9 @@
 package app
 
 import (
-	"audio-server/audio"
-	"audio-server/audio/metadata"
 	"audio-server/audiohook_genesys"
+	"audio-server/audiolab"
+	"audio-server/audiolab/metadata"
 	"audio-server/outbound"
 	"audio-server/router"
 	"audio-server/utils"
@@ -26,21 +26,23 @@ func New() *App {
 func (app *App) setup() {
 	config := utils.GetConfig()
 
-	audioStorageChan := make(chan audio.Message, 10)
-	audioDispatcher := audio.NewAudioDispatcher(audioStorageChan)
-
-	audioHandler := audio.NewAudioHandler(audioDispatcher)
+	audioStorageChan := make(chan audiolab.Message, 10)
+	audioDispatcher := audiolab.NewAudioDispatcher(audioStorageChan)
 
 	metadataChan := make(chan metadata.Event, 10)
-	audiohookHandler := audiohook_genesys.NewWebSocketHandler(audioHandler, metadataChan)
 	metadata.NewMetadataManager(metadataChan)
+
+	audioHandler := audiohook_genesys.NewAudioHandler(audioDispatcher)
+	audiohookHandler := audiohook_genesys.NewWebSocketHandler(audioHandler, metadataChan)
 
 	uploader, err := utils.NewS3Uploader(*utils.GetConfig())
 	if err != nil {
 		utils.Logger.Error("Erreur lors de la création du uploader", zap.Error(err))
 	}
-	if _, err := outbound.NewFileStorage(audioStorageChan, uploader); err != nil {
-		utils.Logger.Error("error create NewFileStorage : ", zap.Error(err))
+	if _, err := outbound.NewFileStorage(audioStorageChan, uploader, *utils.GetConfig()); err != nil {
+		utils.Logger.Error("error create NewFileStorage : ",
+			zap.Any("con", utils.GetConfig()),
+			zap.Error(err))
 	}
 	r := router.InitializeRouter(audiohookHandler)
 	app.Config = *config

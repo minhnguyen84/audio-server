@@ -1,22 +1,23 @@
-package audio
+package audiohook_genesys
 
 import (
+	"audio-server/audiolab"
 	"audio-server/utils"
 	"encoding/binary"
 	"github.com/go-audio/audio"
 )
 
-type Handler struct {
-	Dispatcher *AudioDispatcher
+type AudioHandler struct {
+	Dispatcher *audiolab.AudioDispatcher
 }
 
-func NewAudioHandler(dispatcher *AudioDispatcher) *Handler {
-	return &Handler{
+func NewAudioHandler(dispatcher *audiolab.AudioDispatcher) *AudioHandler {
+	return &AudioHandler{
 		Dispatcher: dispatcher,
 	}
 }
 
-func (ah *Handler) HandleAudioData(sessionId string, binaryData []byte) {
+func (ah *AudioHandler) HandleAudioData(sessionId string, binaryData []byte) {
 	// Préparer les échantillons PCM pour l'écriture
 	numSamples := len(binaryData) / 2 // 2 bytes par échantillon 16 bits
 
@@ -28,10 +29,10 @@ func (ah *Handler) HandleAudioData(sessionId string, binaryData []byte) {
 		bufferExternal.Data[i] = int(int16(binary.LittleEndian.Uint16(binaryData[i*2:])))
 	}
 
-	ah.Dispatcher.Dispatch(Message{
+	ah.Dispatcher.Dispatch(audiolab.Message{
 		SessionId: sessionId,
 		IsClosed:  false,
-		Data: Data{
+		Data: audiolab.Data{
 			Internal: bufferInternal,
 			External: bufferExternal,
 		},
@@ -39,8 +40,8 @@ func (ah *Handler) HandleAudioData(sessionId string, binaryData []byte) {
 
 }
 
-func (ah *Handler) Close(sessionId string) {
-	ah.Dispatcher.Dispatch(Message{
+func (ah *AudioHandler) Close(sessionId string) {
+	ah.Dispatcher.Dispatch(audiolab.Message{
 		SessionId: sessionId,
 		IsClosed:  true,
 	})

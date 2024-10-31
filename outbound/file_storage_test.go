@@ -1,7 +1,7 @@
 package outbound
 
 import (
-	"audio-server/audio"
+	"audio-server/audiolab"
 	"audio-server/utils"
 	"fmt"
 	externalaudio "github.com/go-audio/audio"
@@ -27,9 +27,9 @@ func TestNoGoroutineLeak(t *testing.T) {
 	for i := 0; i < numSessions; i++ {
 		sessionId := fmt.Sprintf("Session_%d", i)
 		// Envoyer un message d'ouverture
-		msgOpen := audio.Message{
+		msgOpen := audiolab.Message{
 			SessionId: sessionId,
-			Data: audio.Data{
+			Data: audiolab.Data{
 				Internal: newMockIntBuffer(),
 				External: newMockIntBuffer(),
 			},
@@ -38,9 +38,9 @@ func TestNoGoroutineLeak(t *testing.T) {
 		dispatchChan <- msgOpen
 
 		for j := 0; j < 5; j++ {
-			msg := audio.Message{
+			msg := audiolab.Message{
 				SessionId: sessionId,
-				Data: audio.Data{
+				Data: audiolab.Data{
 					Internal: newMockIntBuffer(),
 					External: newMockIntBuffer(),
 				},
@@ -49,7 +49,7 @@ func TestNoGoroutineLeak(t *testing.T) {
 			dispatchChan <- msg
 		}
 
-		msgClose := audio.Message{
+		msgClose := audiolab.Message{
 			SessionId: sessionId,
 			IsClosed:  true,
 		}
@@ -89,9 +89,9 @@ func TestFileStorage_NoMemoryLeak(t *testing.T) {
 			defer wg.Done()
 			sessionId := fmt.Sprintf("LeakSession_%d", i)
 			// Envoyer un message d'ouverture
-			msgOpen := audio.Message{
+			msgOpen := audiolab.Message{
 				SessionId: sessionId,
-				Data: audio.Data{
+				Data: audiolab.Data{
 					Internal: newMockIntBuffer(),
 					External: newMockIntBuffer(),
 				},
@@ -101,9 +101,9 @@ func TestFileStorage_NoMemoryLeak(t *testing.T) {
 
 			// Simuler quelques messages intermédiaires
 			for j := 0; j < 3; j++ {
-				msg := audio.Message{
+				msg := audiolab.Message{
 					SessionId: sessionId,
-					Data: audio.Data{
+					Data: audiolab.Data{
 						Internal: newMockIntBuffer(),
 						External: newMockIntBuffer(),
 					},
@@ -113,7 +113,7 @@ func TestFileStorage_NoMemoryLeak(t *testing.T) {
 			}
 
 			// Envoyer un message de fermeture
-			msgClose := audio.Message{
+			msgClose := audiolab.Message{
 				SessionId: sessionId,
 				IsClosed:  true,
 			}
@@ -149,9 +149,9 @@ func TestFileStorage_SingleSession(t *testing.T) {
 	sessionId := "SingleSession"
 
 	// WHEN
-	msgOpen := audio.Message{
+	msgOpen := audiolab.Message{
 		SessionId: sessionId,
-		Data: audio.Data{
+		Data: audiolab.Data{
 			Internal: newMockIntBuffer(),
 			External: newMockIntBuffer(),
 		},
@@ -160,9 +160,9 @@ func TestFileStorage_SingleSession(t *testing.T) {
 	dispatchChan <- msgOpen
 
 	for i := 0; i < 3; i++ {
-		msg := audio.Message{
+		msg := audiolab.Message{
 			SessionId: sessionId,
-			Data: audio.Data{
+			Data: audiolab.Data{
 				Internal: newMockIntBuffer(),
 				External: newMockIntBuffer(),
 			},
@@ -170,7 +170,7 @@ func TestFileStorage_SingleSession(t *testing.T) {
 		}
 		dispatchChan <- msg
 	}
-	msgClose := audio.Message{
+	msgClose := audiolab.Message{
 		SessionId: sessionId,
 		IsClosed:  true,
 	}
@@ -200,15 +200,15 @@ func newMockIntBuffer() *externalaudio.IntBuffer {
 	}
 }
 
-func initStorage() (chan audio.Message, *FileStorage, error) {
+func initStorage() (chan audiolab.Message, *FileStorage, error) {
 	// Créer un canal de dispatch
-	dispatchChan := make(chan audio.Message, 100)
+	dispatchChan := make(chan audiolab.Message, 100)
 
 	// Initialiser le mock uploader
 	mockUploader := utils.NewMockS3Uploader()
 
 	// Initialiser FileStorage
-	fileStorage, err := NewFileStorage(dispatchChan, mockUploader)
+	fileStorage, err := NewFileStorage(dispatchChan, mockUploader, utils.AppConfig{})
 	return dispatchChan, fileStorage, err
 }
 

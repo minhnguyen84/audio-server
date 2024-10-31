@@ -1,8 +1,7 @@
 package audiohook_genesys
 
 import (
-	"audio-server/audio"
-	"audio-server/audio/metadata"
+	"audio-server/audiolab/metadata"
 	"audio-server/utils"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
@@ -17,7 +16,7 @@ import (
 type WebSocketHandler struct {
 	upgrader     websocket.Upgrader
 	metadataChan chan metadata.Event
-	audioHandler *audio.Handler
+	audioHandler *AudioHandler
 }
 
 type WebSocketSession struct {
@@ -25,7 +24,7 @@ type WebSocketSession struct {
 }
 
 // NewWebSocketHandler crée une nouvelle instance de WebSocketHandler
-func NewWebSocketHandler(audioHandler *audio.Handler, metadataChan chan metadata.Event) *WebSocketHandler {
+func NewWebSocketHandler(audioHandler *AudioHandler, metadataChan chan metadata.Event) *WebSocketHandler {
 	return &WebSocketHandler{
 		upgrader: websocket.Upgrader{
 			//  ReadBufferSize:  4096, default value - à ré-évaluer si besoin
@@ -74,7 +73,9 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			utils.Logger.Error("Erreur lors de la lecture du message: ", zap.Error(err))
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNoStatusReceived) {
+				utils.Logger.Error("Erreur lors de la lecture du message: ", zap.Error(err))
+			}
 			break
 		}
 

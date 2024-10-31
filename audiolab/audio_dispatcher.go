@@ -1,4 +1,4 @@
-package audio
+package audiolab
 
 import (
 	"github.com/go-audio/audio"
