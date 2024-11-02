@@ -3,3 +3,6 @@
 *.iml
 /.env
 /minio/
+
+# macOS system files
+.DS_Store
