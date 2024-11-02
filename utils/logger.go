@@ -3,7 +3,6 @@ package utils
 import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 type LogWrapperObj struct {
@@ -17,49 +16,22 @@ var Logger = LogWrapperObj{
 func initLogger() *zap.Logger {
 	callerSkip := zap.AddCallerSkip(1)
 
-	if gin.IsDebugging() {
-		config := zap.NewDevelopmentConfig()
-		config.OutputPaths = []string{"stdout"}
-		logger, _ := config.Build()
-		return logger.WithOptions(callerSkip)
+	appConfig := GetConfig()
+	config := zap.NewDevelopmentConfig()
+	if appConfig.IsDebugging {
+		config.Level.SetLevel(zap.DebugLevel)
 	} else {
-		config := zap.NewProductionConfig()
+		gin.SetMode(gin.ReleaseMode)
 		config.Level.SetLevel(zap.InfoLevel)
-		config.EncoderConfig.LevelKey = "severity"
-		config.EncoderConfig.EncodeLevel = LevelGcpEncoding
-		config.EncoderConfig.TimeKey = "time"
-		config.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
-		config.OutputPaths = []string{"stdout"}
-		logger, _ := config.Build()
-		return logger.With(zap.Namespace("app")).WithOptions(callerSkip).With(zap.String("version", AppVersion))
 	}
+	config.OutputPaths = []string{"stdout"}
+	logger, _ := config.Build()
+	return logger.WithOptions(callerSkip)
 }
 
-func LevelGcpEncoding(level zapcore.Level, encoder zapcore.PrimitiveArrayEncoder) {
-	encoder.AppendString(convertLevel(level))
+func (logWrapper LogWrapperObj) Debug(message string, fields ...zap.Field) {
+	logWrapper.logger.Debug(message, fields...)
 }
-
-func convertLevel(level zapcore.Level) string {
-	switch level {
-	case zapcore.DebugLevel:
-		return "DEBUG"
-	case zapcore.InfoLevel:
-		return "INFO"
-	case zapcore.WarnLevel:
-		return "WARNING"
-	case zapcore.ErrorLevel:
-		return "ERROR"
-	case zapcore.DPanicLevel:
-		return "CRITICAL"
-	case zapcore.PanicLevel:
-		return "CRITICAL"
-	case zapcore.FatalLevel:
-		return "EMERGENCY"
-	default:
-		return "DEFAULT"
-	}
-}
-
 func (logWrapper LogWrapperObj) Info(message string, fields ...zap.Field) {
 	logWrapper.logger.Info(message, fields...)
 }

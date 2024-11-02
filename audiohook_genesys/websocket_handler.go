@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
-	"log"
 	"net/http"
 	"time"
 )
@@ -25,6 +24,7 @@ type WebSocketSession struct {
 
 // NewWebSocketHandler crée une nouvelle instance de WebSocketHandler
 func NewWebSocketHandler(audioHandler *AudioHandler, metadataChan chan metadata.Event) *WebSocketHandler {
+	utils.Logger.Info("Init audiohook_genesys.WebSocketHandler")
 	return &WebSocketHandler{
 		upgrader: websocket.Upgrader{
 			//  ReadBufferSize:  4096, default value - à ré-évaluer si besoin
@@ -49,10 +49,10 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	sessionId := c.GetHeader("audiohook-session-id")
 	if sessionId == "" {
 		utils.Logger.Error("Pas de 'audiohook-session-id' dans header")
-		//TODO il faut gérer comme demander audiohook
+		conn.Close()
 		return
 	}
-	utils.Logger.Info("Nouvelle connexion WebSocket établie", zap.String("sessionId", sessionId))
+	utils.Logger.Debug("Nouvelle connexion WebSocket établie", zap.String("sessionId", sessionId))
 
 	closeChan := make(chan struct{})
 	wsSession := h.newSession(sessionId, closeChan)
@@ -61,7 +61,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Goroutine pour gérer la fermeture de la connexion et les logs récapitulatifs
 	go func() {
 		<-closeChan
-		log.Println("Fermeture de la connexion WebSocket")
+		utils.Logger.Debug("Fermeture de la connexion WebSocket")
 		// fermer audioHandler = close file and buffer
 		h.audioHandler.Close(sessionId)
 		// Fermer la connexion après un court délai pour s'assurer que le message 'closed' est envoyé
@@ -82,7 +82,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		switch messageType {
 		case websocket.BinaryMessage:
 			// Gérer les données audio binaires
-			utils.Logger.Info("BinaryMessage")
+			utils.Logger.Debug("BinaryMessage")
 			h.audioHandler.HandleAudioData(sessionId, message)
 		default:
 			// Gérer les messages textuels (contrôle) - y compris les messages "keep-alive"
@@ -92,13 +92,17 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 				continue
 			}
 			messageSent, err := wsSession.messageHandler.handleMessage(msg)
-
 			if err != nil {
-				//TODO gérer les errors
+				utils.Logger.Error("Erreur de traitement du message : ",
+					zap.String("sessionId", sessionId),
+					zap.Any("message", msg),
+					zap.Error(err))
+				continue
 			}
 			msgBytes, err := json.Marshal(messageSent)
 			if err != nil {
-				utils.Logger.Error("Erreur lors de la sérialisation du message",
+				utils.Logger.Error("Erreur lors de la sérialisation du message de retour",
+					zap.String("sessionId", sessionId),
 					zap.Any("message", messageSent),
 					zap.Error(err))
 				continue
@@ -106,13 +110,15 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 
 			err = conn.WriteMessage(websocket.TextMessage, msgBytes)
 			if err != nil {
-				utils.Logger.Error("Erreur lors de l'envoi du message", zap.Error(err))
+				utils.Logger.Error("Erreur lors de l'envoi du message",
+					zap.String("sessionId", sessionId),
+					zap.Error(err))
 				continue
 			}
 		}
 	}
 
-	utils.Logger.Info("Connexion WebSocket fermée.")
+	utils.Logger.Debug("Connexion WebSocket fermée.")
 }
 
 func (h *WebSocketHandler) createMetadata(sessionId string) {

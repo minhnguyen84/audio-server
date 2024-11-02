@@ -37,7 +37,7 @@ func NewMessageHandler(sessionId string, closeChan chan struct{}, metadataChan c
 func (mh *MessageHandler) handleMessage(msg MessageReceived) (*MessageSent, error) {
 	handlerFunc, exists := mh.handlers[msg.Type]
 	if !exists {
-		utils.Logger.Info("Type de message non géré", zap.Any("message", msg))
+		utils.Logger.Warn("Type de message non géré", zap.Any("message", msg))
 		return nil, nil
 	}
 	mh.updateClientSeq(msg)
@@ -51,11 +51,9 @@ func (mh *MessageHandler) handleOpen(msg MessageReceived) (*MessageSent, error) 
 		return nil, err
 	}
 
-	utils.Logger.Info("Reçu 'open'",
+	utils.Logger.Debug("Reçu 'open'",
 		zap.String("sessionID-message", msg.ID),
 		zap.String("sessionID", mh.sessionId))
-
-	//TODO : ajouter la gestion des metadata
 
 	// Envoyer la réponse 'opened'
 	openedMsg := MessageSent{
@@ -99,7 +97,7 @@ func (mh *MessageHandler) handlePing(msg MessageReceived) (*MessageSent, error) 
 		return nil, err
 	}
 
-	utils.Logger.Info("Reçu 'ping'",
+	utils.Logger.Debug("Reçu 'ping'",
 		zap.String("sessionID-message", msg.ID),
 		zap.String("sessionID", mh.sessionId))
 
@@ -121,7 +119,7 @@ func (mh *MessageHandler) handleClose(msg MessageReceived) (*MessageSent, error)
 		return nil, err
 	}
 
-	utils.Logger.Info("Reçu 'close'",
+	utils.Logger.Debug("Reçu 'close'",
 		zap.String("sessionID-message", msg.ID),
 		zap.String("sessionID", mh.sessionId))
 
@@ -154,7 +152,7 @@ func (mh *MessageHandler) handleClose(msg MessageReceived) (*MessageSent, error)
 // TODO : implementer update, error message
 
 func (mh *MessageHandler) updateClientSeq(msg MessageReceived) {
-	mh.clientseq = mh.seq
+	mh.clientseq = msg.Seq
 }
 
 func (mh *MessageHandler) nextSequence() int {

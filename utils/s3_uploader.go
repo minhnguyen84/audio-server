@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -42,7 +41,7 @@ func NewS3Uploader(appConfig AppConfig) (*S3Uploader, error) {
 		)
 
 		if err != nil {
-			log.Fatalf("Impossible de charger la configuration: %v", err)
+			return nil, fmt.Errorf("Erreur lors de la création du config S3-Like: %v", err)
 		}
 		// Créer un client S3 avec UsePathStyle
 		s3Client = s3.NewFromConfig(cfg, func(o *s3.Options) {
@@ -54,13 +53,10 @@ func NewS3Uploader(appConfig AppConfig) (*S3Uploader, error) {
 			config.WithRegion(appConfig.S3Region),
 		)
 		if err != nil {
-			log.Fatalf("Impossible de charger la configuration: %v", err)
+			return nil, fmt.Errorf("Erreur lors de la création du config AWS: %v", err)
 		}
 		// Configuration pour AWS S3 avec rôles IAM
 		s3Client = s3.NewFromConfig(cfg)
-		if err != nil {
-			return nil, fmt.Errorf("Erreur lors de la création de la session AWS: %v", err)
-		}
 	}
 
 	if appConfig.S3BucketName == "" {

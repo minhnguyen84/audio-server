@@ -20,6 +20,8 @@ type AppConfig struct {
 	S3SecretKey string
 
 	AudioTempRep string
+
+	IsDebugging bool
 }
 
 var (
@@ -58,6 +60,9 @@ func loadConfig() *AppConfig {
 
 	viper.SetDefault("AUDIO_TEMP_REP", "/audio_tmp")
 	cfg.AudioTempRep = viper.GetString("AUDIO_TEMP_REP")
+
+	viper.SetDefault("DEBUGGING", false)
+	cfg.IsDebugging = viper.GetBool("DEBUGGING")
 
 	return &cfg
 }

@@ -45,7 +45,7 @@ func (m *MetadataManager) run() {
 }
 
 func (m *MetadataManager) handleEvent(event Event) {
-	utils.Logger.Info("Reçu", zap.Any("Event", event))
+	utils.Logger.Debug("Reçu", zap.Any("Event", event))
 	handlerFunc, exists := m.handlers[event.Type]
 	if !exists {
 		utils.Logger.Warn("Type de event non géré", zap.Any("event", event))

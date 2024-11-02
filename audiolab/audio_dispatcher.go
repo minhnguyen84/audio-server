@@ -1,6 +1,7 @@
 package audiolab
 
 import (
+	"audio-server/utils"
 	"github.com/go-audio/audio"
 	"sync"
 )
@@ -22,8 +23,9 @@ type AudioDispatcher struct {
 }
 
 func NewAudioDispatcher(initialSubscribers ...chan Message) *AudioDispatcher {
+	utils.Logger.Info("Init AudioDispatcher")
 	dispatcher := &AudioDispatcher{
-		outputChannels: make([]chan Message, 0, len(initialSubscribers)),
+		outputChannels: make([]chan Message, len(initialSubscribers)),
 	}
 
 	dispatcher.mu.Lock()

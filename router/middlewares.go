@@ -38,7 +38,7 @@ func Ginzap(logger utils.LogWrapperObj, timeFormat string, utc bool, alwaysLog b
 			}
 		} else {
 			if alwaysLog || c.Writer.Status() >= 300 {
-				logger.Info(path,
+				logger.Debug(path,
 					zap.Int("status", c.Writer.Status()),
 					zap.String("method", c.Request.Method),
 					zap.String("path", path),

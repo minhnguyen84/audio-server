@@ -1,5 +1,7 @@
 Coming soon ...
 
+export $(grep -v '^#' .env | xargs)
+
 ```mermaid
 graph TD
     Genesys-Webphonic[Genesys - Client] -->|Connexion WebSocket| Echo-Audio-Server[Echo Audio Server - Serveur ]

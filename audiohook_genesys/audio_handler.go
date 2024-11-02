@@ -12,6 +12,7 @@ type AudioHandler struct {
 }
 
 func NewAudioHandler(dispatcher *audiolab.AudioDispatcher) *AudioHandler {
+	utils.Logger.Info("Init AudioHandler")
 	return &AudioHandler{
 		Dispatcher: dispatcher,
 	}
@@ -45,7 +46,7 @@ func (ah *AudioHandler) Close(sessionId string) {
 		SessionId: sessionId,
 		IsClosed:  true,
 	})
-	utils.Logger.Info("Fichier WAV enregistré avec succès.")
+	utils.Logger.Debug("Fichier WAV enregistré avec succès.")
 }
 
 func newIntBuffer(numSamples int) *audio.IntBuffer {

@@ -38,11 +38,13 @@ func (app *App) setup() {
 	uploader, err := utils.NewS3Uploader(*utils.GetConfig())
 	if err != nil {
 		utils.Logger.Error("Erreur lors de la création du uploader", zap.Error(err))
+		panicWhenSetup("S3Uploader")
 	}
 	if _, err := outbound.NewFileStorage(audioStorageChan, uploader, *utils.GetConfig()); err != nil {
 		utils.Logger.Error("error create NewFileStorage : ",
 			zap.Any("con", utils.GetConfig()),
 			zap.Error(err))
+		panicWhenSetup("FileStorage")
 	}
 	r := router.InitializeRouter(audiohookHandler)
 	app.Config = *config
@@ -56,4 +58,8 @@ func (app *App) Run() {
 	if err := app.Router.Run(fmt.Sprintf(":%d", port)); err != nil {
 		utils.Logger.Error("error on running : ", zap.Error(err))
 	}
+}
+
+func panicWhenSetup(module string) {
+	panic(fmt.Sprintf("Could not setup %s", module))
 }
