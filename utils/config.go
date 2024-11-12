@@ -61,7 +61,7 @@ func loadConfig() *AppConfig {
 	viper.SetDefault("AUDIO_TEMP_REP", "/audio_tmp")
 	cfg.AudioTempRep = viper.GetString("AUDIO_TEMP_REP")
 
-	viper.SetDefault("DEBUGGING", false)
+	viper.SetDefault("DEBUGGING", true)
 	cfg.IsDebugging = viper.GetBool("DEBUGGING")
 
 	return &cfg
