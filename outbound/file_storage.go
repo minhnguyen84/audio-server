@@ -199,7 +199,7 @@ func (f *FileStorage) Close() {
 }
 
 func (f *FileStorage) uploadFile(file *os.File, fileName string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	rep := time.Now().Format("20060102")
 	err := f.uploader.UploadFile(ctx, file, rep+"/"+fileName)
