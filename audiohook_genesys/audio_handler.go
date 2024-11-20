@@ -52,7 +52,7 @@ func (ah *AudioHandler) Close(sessionId string) {
 func newIntBuffer(numSamples int) *audio.IntBuffer {
 	return &audio.IntBuffer{
 		Format: &audio.Format{
-			SampleRate:  48000,
+			SampleRate:  8000,
 			NumChannels: 1,
 		},
 		Data:           make([]int, numSamples),
