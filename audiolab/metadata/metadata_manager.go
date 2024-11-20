@@ -93,3 +93,7 @@ func (m *MetadataManager) handleUpdate(event Event) {
 		metadata.Language = params.Language
 	}
 }
+
+func (m *MetadataManager) GetAllMetadata() map[string]*Metadata {
+	return m.metadataMap
+}

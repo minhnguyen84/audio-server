@@ -4,6 +4,7 @@ import (
 	"audio-server/audiohook_genesys"
 	"audio-server/audiolab"
 	"audio-server/audiolab/metadata"
+	"audio-server/handlers"
 	"audio-server/outbound"
 	"audio-server/router"
 	"audio-server/utils"
@@ -30,10 +31,12 @@ func (app *App) setup() {
 	audioDispatcher := audiolab.NewAudioDispatcher(audioStorageChan)
 
 	metadataChan := make(chan metadata.Event, 10)
-	metadata.NewMetadataManager(metadataChan)
+	metadatManage := metadata.NewMetadataManager(metadataChan)
 
 	audioHandler := audiohook_genesys.NewAudioHandler(audioDispatcher)
 	audiohookHandler := audiohook_genesys.NewWebSocketHandler(audioHandler, metadataChan)
+
+	inference := handlers.NewInferenceHandler(metadatManage)
 
 	uploader, err := utils.NewS3Uploader(*utils.GetConfig())
 	if err != nil {
@@ -46,7 +49,7 @@ func (app *App) setup() {
 			zap.Error(err))
 		panicWhenSetup("FileStorage")
 	}
-	r := router.InitializeRouter(audiohookHandler)
+	r := router.InitializeRouter(audiohookHandler, inference)
 	app.Config = *config
 	app.Router = r
 }
