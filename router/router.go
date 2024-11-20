@@ -16,7 +16,7 @@ func InitializeRouter(audiohookHandler *audiohook_genesys.WebSocketHandler, infe
 		// Ajouter les en-têtes pour gérer CORS
 		c.Header("Access-Control-Allow-Origin", "*") // Changez "*" par une origine spécifique si nécessaire
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, x-api-key")
 		c.Header("Access-Control-Expose-Headers", "Content-Length")
 
 		// Répondre directement aux requêtes OPTIONS
